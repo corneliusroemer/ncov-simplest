@@ -1,0 +1,6 @@
+.snakemake/*
+pre-processed/*
+builds/*
+auspice/*
+data/omicron.fasta
+data/nextclade_dataset/*
