@@ -1,7 +1,9 @@
-This phylogeny shows evolutionary relationships of SARS-CoV-2 viruses of the Omicron variant from the ongoing novel coronavirus COVID-19 pandemic.
+This phylogeny shows diversity within the Omicron variant from the ongoing novel coronavirus COVID-19 pandemic.
 All published Omicron sequences are included.
 
-#TODO: Description of what is masked and why, link to masked site txt
+The following 89 sites are masked (plus 300 nt from beginning and end): https://github.com/corneliusroemer/ncov-simplest/blob/main/data/exclude_sites_light.txt
+
+These are all the sites that seem to define Omicron and are conserved. Due to the large number of mutations in Spike and deletions, there seem to be amplicon dropouts that are sometimes backfilled with reference. Analysis of trees without masking these revealed a large number of probably artefactual homoplasies.
 
 The analysis is maintained by
  * [Cornelius Roemer](https://neherlab.org) at Biozentrum of the University of Basel and the Swiss Institute of Bioinformatics
