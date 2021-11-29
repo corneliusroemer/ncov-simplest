@@ -103,8 +103,8 @@ rule mask:
         """
         python3 scripts/mask-alignment.py \
             --alignment {input.alignment} \
-            --mask-from-beginning 300 \
-            --mask-from-end 300 \
+            --mask-from-beginning 100 \
+            --mask-from-end 100 \
             --mask-site-file data/exclude_sites_light.txt \
             --output {output.alignment}
         """
