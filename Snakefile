@@ -74,6 +74,46 @@ rule nextclade:
         fasta = "data/omicron.fasta",
         dataset = rules.download_nextclade_dataset.output
     output:
+        alignment = "pre-processed/nextclade/premask.aligned.fasta",
+    shell:
+        """
+        nextclade run \
+            --input-fasta {input.fasta} \
+            --input-dataset {input.dataset} \
+            --output-dir pre-processed/nextclade \
+            --jobs 0 \
+            -n premask
+        """
+
+# no mask
+# rule mask:
+#     input:
+#         alignment = "pre-processed/nextclade/omicron.aligned.fasta",
+#     output:
+#         alignment = "builds/masked.fasta",
+#     shell: "mv {input.alignment} {output.alignment}"
+
+
+rule mask:
+    input:
+        alignment = "pre-processed/nextclade/premask.aligned.fasta",
+    output:
+        alignment = "builds/masked.fasta",
+    shell:
+        """
+        python3 scripts/mask-alignment.py \
+            --alignment {input.alignment} \
+            --mask-from-beginning 300 \
+            --mask-from-end 300 \
+            --mask-site-file data/exclude_sites_light.txt \
+            --output {output.alignment}
+        """
+
+rule nextclade_after_mask:
+    input: 
+        fasta = "builds/masked.fasta",
+        dataset = rules.download_nextclade_dataset.output
+    output:
         alignment = "pre-processed/nextclade/omicron.aligned.fasta",
         translations = expand("pre-processed/nextclade/omicron.gene.{gene}.fasta", gene=genes),
     shell:
@@ -82,32 +122,19 @@ rule nextclade:
             --input-fasta {input.fasta} \
             --input-dataset {input.dataset} \
             --output-dir pre-processed/nextclade \
-            --jobs 0
-        """
-
-rule mask:
-    input:
-        alignment = "pre-processed/nextclade/omicron.aligned.fasta",
-    output:
-        alignment = "builds/masked.fasta",
-    shell:
-        """
-        python3 scripts/mask-alignment.py \
-            --alignment {input.alignment} \
-            --mask-from-beginning 300 \
-            --mask-from-end 8500 \
-            --mask-site-file data/exclude_sites.txt \
-            --output {output.alignment}
+            --jobs 0 \
+            -n omicron
         """
 
 rule tree:
     input:
-        alignment = "builds/masked.fasta",
+        alignment = rules.nextclade_after_mask.output.alignment,
     output:
         tree = "builds/tree_raw.nwk"
     params:
         args = "'-ninit 10 -n 4 -czb'",
-        exclude_sites = "data/exclude_sites.txt"
+        # exclude_sites = "data/exclude_sites.txt"
+        exclude_sites = "data/exclude_none.txt"
     shell:
         """
         augur tree \
