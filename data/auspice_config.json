@@ -1,8 +1,9 @@
 {
-  "title": "Phylogenetic analysis of the ORF1ab gene of the Omicron variant of SARS-CoV-2",
+  "title": "Phylogenetic analysis of within-clade Omicron diversity",
   "build_url": "https://github.com/corneliusroemer/ncov-simplest",
   "maintainers": [
-    { "name": "Cornelius Roemer", "url": "https://neherlab.org" }
+    { "name": "Cornelius Roemer", "url": "https://neherlab.org" },
+    { "name": "Richard Neher", "url": "https://neherlab.org" }
   ],
   "data_provenance": [
     {
@@ -77,7 +78,7 @@
     "distance_measure": "div",
     "geo_resolution": "country",
     "map_triplicate": true,
-    "branch_label": "none",
+    "branch_label": "aa",
     "transmission_lines": false
   },
   "filters": [

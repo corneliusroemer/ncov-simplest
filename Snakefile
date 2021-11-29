@@ -163,14 +163,6 @@ rule refine:
             --output-tree {output.tree} \
             --metadata {input.metadata} \
             --output-node-data {output.node_data} \
-            --timetree \
-            --keep-polytomies \
-            --clock-rate 0.0007 \
-            --clock-std-dev 0.003 \
-            --coalescent opt \
-            --date-inference joint \
-            --date-confidence \
-            --no-covariance
         """
 
 rule ancestral:
