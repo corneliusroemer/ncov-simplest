@@ -225,7 +225,7 @@ rule export:
         auspice_config = "data/auspice_config.json",
         metadata = "data/metadata.tsv",
     output:
-        auspice_json = "auspice/auspice.json",
+        auspice_json = "auspice/ncov_21K-diversity.json",
     shell:
         """
         export AUGUR_RECURSION_LIMIT=10000;
@@ -238,4 +238,12 @@ rule export:
             --metadata {input.metadata} \
             --description data/description.md \
             # --title "Phylogenetic analysis of the ORF1ab genes of the Omicron variant"
+        """
+
+rule deploy:
+    input: rules.export.output.auspice_json
+    output: 'deploy/latest',
+    shell: 
+        """
+        nextstrain deploy s3://nextstrain-neherlab {input} 2>&1 && touch deploy/latest
         """

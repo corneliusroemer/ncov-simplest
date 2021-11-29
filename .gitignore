@@ -9,3 +9,4 @@ data/gisaid.fasta
 *.tar
 data/metadata.tsv
 data/metadata_omicron.tsv
+deploy/*
