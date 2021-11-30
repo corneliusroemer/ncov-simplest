@@ -205,6 +205,18 @@ rule translate:
             --output {output.node_data} 2>&1 | tee {log}
         """
 
+rule recency:
+    input:
+        metadata= "data/metadata.tsv",
+    output:
+        node_data = "builds/recency.json",
+    shell:
+        """
+        python3 scripts/construct_recency.py \
+            --metadata {input.metadata} \
+            --output {output} 2>&1 | tee {log}
+        """
+
 def _get_node_data_by_wildcards(wildcards):
     """Return a list of node data files to include for a given build's wildcards.
     """
@@ -214,6 +226,7 @@ def _get_node_data_by_wildcards(wildcards):
         rules.refine.output.node_data,
         rules.ancestral.output.node_data,
         rules.translate.output.node_data,
+        rules.recency.output.node_data,
     ]
     inputs = [input_file.format(**wildcards_dict) for input_file in inputs]
     return inputs
