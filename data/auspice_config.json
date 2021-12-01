@@ -57,21 +57,6 @@
       "type": "categorical"
     },
     {
-      "key": "country_exposure",
-      "title": "Country of exposure",
-      "type": "categorical"
-    },
-    {
-      "key": "division_exposure",
-      "title": "Division of exposure",
-      "type": "categorical"
-    },
-    {
-      "key": "region_exposure",
-      "title": "Region of exposure",
-      "type": "categorical"
-    },
-    {
       "key": "recency",
       "title": "Submission recency",
       "type": "categorical"
