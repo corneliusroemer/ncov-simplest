@@ -65,9 +65,22 @@ rule join_ref_meta:
         reference = "data/root_meta.tsv",
         omicron = "data/metadata_omicron.tsv",
     output:
-        "data/metadata.tsv",
+        "data/metadata_raw.tsv",
     shell:
         "cat {input.omicron} {input.reference} > {output}"
+
+rule remove_false_meta_linebreaks:
+    input:
+        "data/metadata_raw.tsv",
+    output:
+        "data/metadata.tsv",
+    run:
+        import re
+        with open(input[0], "r") as f:
+            string_in = f.read()
+        string_out = re.sub(r"\n(?!(hCoV-19/|MN908947))"," ",string_in)
+        with open(output[0], "w") as f: 
+            f.write(str(string_out))
 
 rule nextclade:
     input: 
