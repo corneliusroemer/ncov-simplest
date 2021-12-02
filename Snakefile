@@ -118,6 +118,7 @@ rule mask:
             --alignment {input.alignment} \
             --mask-from-beginning 100 \
             --mask-from-end 100 \
+            --mask-terminal-gaps \
             --mask-site-file data/exclude_sites_light.txt \
             --output {output.alignment}
         """
