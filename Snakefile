@@ -182,7 +182,7 @@ rule refine:
 rule ancestral:
     input:
         tree = rules.refine.output.tree,
-        alignment = rules.mask.output.alignment
+        alignment = rules.nextclade.output.alignment
     output:
         node_data = "builds/nt_muts.json"
     params:
