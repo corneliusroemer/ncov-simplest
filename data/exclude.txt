@@ -5,3 +5,6 @@ hCoV-19/Ghana/TRA-2290/2021
 hCoV-19/Ghana/TRA-2300/2021
 hCoV-19/Ghana/TRA-2292/2021
 hCoV-19/SouthAfrica/Tygerberg_3072/2021
+hCoV-19/India/KA-RF-NCBS-Bengaluru-RFNB-1100/2021
+hCoV-19/Spain/MD-HGUGM-5836818/2021
+

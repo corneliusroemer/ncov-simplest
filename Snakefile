@@ -117,7 +117,7 @@ rule mask:
         python3 scripts/mask-alignment.py \
             --alignment {input.alignment} \
             --mask-from-beginning 100 \
-            --mask-from-end 100 \
+            --mask-from-end 200 \
             --mask-terminal-gaps \
             --mask-site-file data/exclude_sites_light.txt \
             --output {output.alignment}
