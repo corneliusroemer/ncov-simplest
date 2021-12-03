@@ -1,3 +1,13 @@
+rule build:
+    input:
+        "auspice/ncov_21K-diversity.json",
+        "auspice/ncov_21K-diversity_unmasked.json"
+
+rule deploy:
+    input:
+        "deploy/latest.json",
+        "deploy/latest_unmasked.json"
+
 def input_for_do_stuff(wildcards):
     try:
         return next(Path("data").glob("*.tar"))
@@ -177,6 +187,14 @@ rule refine:
             --output-tree {output.tree} \
             --metadata {input.metadata} \
             --output-node-data {output.node_data} \
+            --timetree \
+            --keep-polytomies \
+            --clock-rate 0.0006 \
+            --clock-std-dev 0.003 \
+            --coalescent opt \
+            --date-inference marginal \
+            --date-confidence \
+            --no-covariance
         """
 
 rule ancestral:
@@ -185,6 +203,24 @@ rule ancestral:
         alignment = rules.mask.output.alignment
     output:
         node_data = "builds/nt_muts.json"
+    params:
+        inference = "joint"
+    shell:
+        """
+        augur ancestral \
+            --tree {input.tree} \
+            --alignment {input.alignment} \
+            --output-node-data {output.node_data} \
+            --inference {params.inference} \
+            --infer-ambiguous 2>&1 | tee {log}
+        """
+
+rule ancestral_unmasked:
+    input:
+        tree = rules.refine.output.tree,
+        alignment = rules.mask.input.alignment
+    output:
+        node_data = "builds/nt_muts_unmasked.json"
     params:
         inference = "joint"
     shell:
@@ -238,7 +274,6 @@ def _get_node_data_by_wildcards(wildcards):
     wildcards_dict = dict(wildcards)
     inputs = [
         rules.refine.output.node_data,
-        rules.ancestral.output.node_data,
         rules.translate.output.node_data,
         rules.recency.output.node_data,
     ]
@@ -249,16 +284,17 @@ rule export:
     input:
         tree = rules.refine.output.tree,
         node_data = _get_node_data_by_wildcards,
+        ancestral = "builds/nt_muts{masking}",
         auspice_config = "data/auspice_config.json",
         metadata = "data/metadata.tsv",
     output:
-        auspice_json = "auspice/ncov_21K-diversity.json",
+        auspice_json = "auspice/ncov_21K-diversity{masking}",
     shell:
         """
         export AUGUR_RECURSION_LIMIT=10000;
         augur export v2 \
             --tree {input.tree} \
-            --node-data {input.node_data} \
+            --node-data {input.node_data} {input.ancestral} \
             --include-root-sequence \
             --auspice-config {input.auspice_config} \
             --output {output.auspice_json} \
@@ -267,10 +303,10 @@ rule export:
             # --title "Phylogenetic analysis of the ORF1ab genes of the Omicron variant"
         """
 
-rule deploy:
-    input: rules.export.output.auspice_json
-    output: 'deploy/latest',
+rule deploy_single:
+    input: "auspice/ncov_21K-diversity{masking}",
+    output: 'deploy/latest{masking}',
     shell: 
         """
-        nextstrain deploy s3://nextstrain-neherlab {input} 2>&1 && touch deploy/latest
+        nextstrain deploy s3://nextstrain-neherlab {input} 2>&1 && touch {output}
         """
