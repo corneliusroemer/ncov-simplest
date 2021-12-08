@@ -11,3 +11,5 @@ data/metadata.tsv
 data/metadata_omicron.tsv
 deploy/*
 data/metadata_raw.tsv
+data/21K*/*
+

@@ -3,10 +3,18 @@ rule build:
         "auspice/ncov_21K-diversity.json",
         "auspice/ncov_21K-diversity_unmasked.json"
 
+rule build_all:
+    input:
+        "auspice/ncov_21K-all-diversity.json",
+
 rule deploy:
     input:
-        "deploy/latest.json",
-        "deploy/latest_unmasked.json"
+        "deploy/21K/latest.json",
+        "deploy/21K/latest_unmasked.json",
+
+rule deploy_all:
+    input:
+        "deploy/21K-all/latest.json",
 
 def input_for_do_stuff(wildcards):
     try:
@@ -49,9 +57,9 @@ rule exclude_outliers:
     input:
         sequences = "data/gisaid.fasta",
         metadata = "data/metadata_omicron.tsv",
-        exclude = "data/exclude.txt",
+        exclude = "data/{build}/exclude.txt",
     output:
-        sampled_sequences = "data/filtered.fasta",
+        sampled_sequences = "data/{build}/filtered.fasta",
     shell:
         """
         augur filter \
@@ -64,9 +72,9 @@ rule exclude_outliers:
 rule join_ref_fasta:
     input:
         reference = "data/reference_seq.fasta",
-        omicron = "data/filtered.fasta",
+        omicron = "data/{build}/filtered.fasta",
     output:
-        "data/omicron.fasta",
+        "data/{build}/omicron.fasta",
     shell:
         "cat {input.reference} {input.omicron} > {output}"
 
@@ -94,16 +102,17 @@ rule remove_false_meta_linebreaks:
 
 rule nextclade:
     input: 
-        fasta = "data/omicron.fasta",
+        fasta = "data/{build}/omicron.fasta",
         dataset = rules.download_nextclade_dataset.output
     output:
-        alignment = "pre-processed/nextclade/premask.aligned.fasta",
+        alignment = "pre-processed/{build}/nextclade/premask.aligned.fasta",
+        translations = expand("pre-processed/{{build}}/nextclade/premask.gene.{gene}.fasta", gene=genes),
     shell:
         """
         nextclade run \
             --input-fasta {input.fasta} \
             --input-dataset {input.dataset} \
-            --output-dir pre-processed/nextclade \
+            --output-dir pre-processed/{wildcards.build}/nextclade \
             --jobs 0 \
             -n premask
         """
@@ -119,9 +128,9 @@ rule nextclade:
 
 rule mask:
     input:
-        alignment = "pre-processed/nextclade/premask.aligned.fasta",
+        alignment = "pre-processed/{build}/nextclade/premask.aligned.fasta",
     output:
-        alignment = "builds/masked.fasta",
+        alignment = "builds/{build}/masked.fasta",
     shell:
         """
         python3 scripts/mask-alignment.py \
@@ -135,17 +144,17 @@ rule mask:
 
 rule nextclade_after_mask:
     input: 
-        fasta = "builds/masked.fasta",
+        fasta = "builds/{build}/masked.fasta",
         dataset = rules.download_nextclade_dataset.output
     output:
-        alignment = "pre-processed/nextclade/omicron.aligned.fasta",
-        translations = expand("pre-processed/nextclade/omicron.gene.{gene}.fasta", gene=genes),
+        alignment = "pre-processed/{build}/nextclade/omicron.aligned.fasta",
+        translations = expand("pre-processed/{{build}}/nextclade/omicron.gene.{gene}.fasta", gene=genes),
     shell:
         """
         nextclade run \
             --input-fasta {input.fasta} \
             --input-dataset {input.dataset} \
-            --output-dir pre-processed/nextclade \
+            --output-dir pre-processed/{wildcards.build}/nextclade \
             --jobs 0 \
             -n omicron
         """
@@ -154,9 +163,9 @@ rule tree:
     input:
         alignment = rules.nextclade_after_mask.output.alignment,
     output:
-        tree = "builds/tree_raw.nwk"
+        tree = "builds/{build}/tree_raw.nwk"
     params:
-        args = "'-ninit 10 -n 4 -czb'",
+        args = "'-ninit 10 -n 4 -czb -T AUTO -ntmax 10'",
         # exclude_sites = "data/exclude_sites.txt"
         exclude_sites = "data/exclude_none.txt"
     shell:
@@ -165,8 +174,7 @@ rule tree:
             --alignment {input.alignment} \
             --tree-builder-args {params.args} \
             --output {output.tree} \
-            --exclude-sites {params.exclude_sites} \
-            --nthreads 8
+            --exclude-sites {params.exclude_sites}
         """
 
 rule refine:
@@ -175,8 +183,8 @@ rule refine:
         alignment = rules.mask.output.alignment,
         metadata = "data/metadata.tsv",
     output:
-        tree = "builds/tree.nwk",
-        node_data = "builds/branch_lengths.json"
+        tree = "builds/{build}/tree.nwk",
+        node_data = "builds/{build}/branch_lengths.json"
     shell:
         """
         augur refine \
@@ -187,7 +195,7 @@ rule refine:
             --output-tree {output.tree} \
             --metadata {input.metadata} \
             --output-node-data {output.node_data} \
-            --timetree \
+            # --timetree \
             --keep-polytomies \
             --clock-rate 0.0006 \
             --clock-std-dev 0.003 \
@@ -202,7 +210,7 @@ rule ancestral:
         tree = rules.refine.output.tree,
         alignment = rules.mask.output.alignment
     output:
-        node_data = "builds/nt_muts.json"
+        node_data = "builds/{build}/nt_muts.json"
     params:
         inference = "joint"
     shell:
@@ -220,7 +228,7 @@ rule ancestral_unmasked:
         tree = rules.refine.output.tree,
         alignment = rules.mask.input.alignment
     output:
-        node_data = "builds/nt_muts_unmasked.json"
+        node_data = "builds/{build}/nt_muts_unmasked.json"
     params:
         inference = "joint"
     shell:
@@ -237,11 +245,32 @@ rule ancestral_unmasked:
 rule translate:
     input:
         tree = rules.refine.output.tree,
-        translations = expand("pre-processed/nextclade/omicron.gene.{gene}.fasta", gene=genes),
+        translations = expand("pre-processed/{{build}}/nextclade/omicron.gene.{gene}.fasta", gene=genes),
         reference = "data/reference_seq.fasta",
         genemap = "data/annotation.gff",
     output:
-        node_data = "builds/aa_muts.json",
+        node_data = "builds/{build}/aa_muts.json",
+    params:
+        genes = genes
+    shell:
+        """
+        python3 scripts/explicit_translation.py \
+            --tree {input.tree} \
+            --annotation {input.genemap} \
+            --reference {input.reference} \
+            --translations {input.translations:q} \
+            --genes {params.genes} \
+            --output {output.node_data} 2>&1 | tee {log}
+        """
+
+rule translate_unmasked:
+    input:
+        tree = rules.refine.output.tree,
+        translations = expand("pre-processed/{{build}}/nextclade/premask.gene.{gene}.fasta", gene=genes),
+        reference = "data/reference_seq.fasta",
+        genemap = "data/annotation.gff",
+    output:
+        node_data = "builds/{build}/aa_muts_unmasked.json",
     params:
         genes = genes
     shell:
@@ -259,7 +288,7 @@ rule recency:
     input:
         metadata= "data/metadata.tsv",
     output:
-        node_data = "builds/recency.json",
+        node_data = "builds/{build}/recency.json",
     shell:
         """
         python3 scripts/construct_recency.py \
@@ -274,7 +303,6 @@ def _get_node_data_by_wildcards(wildcards):
     wildcards_dict = dict(wildcards)
     inputs = [
         rules.refine.output.node_data,
-        rules.translate.output.node_data,
         rules.recency.output.node_data,
     ]
     inputs = [input_file.format(**wildcards_dict) for input_file in inputs]
@@ -284,17 +312,18 @@ rule export:
     input:
         tree = rules.refine.output.tree,
         node_data = _get_node_data_by_wildcards,
-        ancestral = "builds/nt_muts{masking}",
+        ancestral = "builds/{build}/nt_muts{masking}",
+        translate = "builds/{build}/aa_muts{masking}",
         auspice_config = "data/auspice_config.json",
         metadata = "data/metadata.tsv",
     output:
-        auspice_json = "auspice/ncov_21K-diversity{masking}",
+        auspice_json = "auspice/ncov_{build}-diversity{masking}",
     shell:
         """
         export AUGUR_RECURSION_LIMIT=10000;
         augur export v2 \
             --tree {input.tree} \
-            --node-data {input.node_data} {input.ancestral} \
+            --node-data {input.node_data} {input.ancestral} {input.translate} \
             --include-root-sequence \
             --auspice-config {input.auspice_config} \
             --output {output.auspice_json} \
@@ -304,8 +333,8 @@ rule export:
         """
 
 rule deploy_single:
-    input: "auspice/ncov_21K-diversity{masking}",
-    output: 'deploy/latest{masking}',
+    input: "auspice/ncov_{build}-diversity{masking}",
+    output: 'deploy/{build}/latest{masking}',
     shell: 
         """
         nextstrain deploy s3://nextstrain-neherlab {input} 2>&1 && touch {output}
