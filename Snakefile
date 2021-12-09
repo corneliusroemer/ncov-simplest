@@ -25,8 +25,8 @@ def input_for_do_stuff(wildcards):
 rule unpack_gisaid_tar:
     input: input_for_do_stuff 
     output:
-        sequences = "data/gisaid.fasta",
-        metadata = "data/metadata_omicron.tsv",
+        sequences = "builds/gisaid.fasta",
+        metadata = "builds/metadata_omicron.tsv",
     shell:
         """
         tar -xvf {input} -C data/unpacked
@@ -35,7 +35,7 @@ rule unpack_gisaid_tar:
         """
 
 rule download_nextclade_dataset:
-    output: directory("data/nextclade_dataset")
+    output: directory("builds/nextclade_dataset")
     shell: "nextclade dataset get --name='sars-cov-2' --output-dir={output}"
 
 genes = [
@@ -55,11 +55,11 @@ genes = [
 
 rule exclude_outliers:
     input:
-        sequences = "data/gisaid.fasta",
-        metadata = "data/metadata_omicron.tsv",
+        sequences = "builds/gisaid.fasta",
+        metadata = "builds/metadata_omicron.tsv",
         exclude = "data/{build}/exclude.txt",
     output:
-        sampled_sequences = "data/{build}/filtered.fasta",
+        sampled_sequences = "builds/{build}/filtered.fasta",
     shell:
         """
         augur filter \
@@ -72,26 +72,26 @@ rule exclude_outliers:
 rule join_ref_fasta:
     input:
         reference = "data/reference_seq.fasta",
-        omicron = "data/{build}/filtered.fasta",
+        omicron = "builds/{build}/filtered.fasta",
     output:
-        "data/{build}/omicron.fasta",
+        "builds/{build}/omicron.fasta",
     shell:
         "cat {input.reference} {input.omicron} > {output}"
 
 rule join_ref_meta:
     input:
         reference = "data/root_meta.tsv",
-        omicron = "data/metadata_omicron.tsv",
+        omicron = "builds/metadata_omicron.tsv",
     output:
-        "data/metadata_raw.tsv",
+        "builds/metadata_raw.tsv",
     shell:
         "cat {input.omicron} {input.reference} > {output}"
 
 rule remove_false_meta_linebreaks:
     input:
-        "data/metadata_raw.tsv",
+        "builds/metadata_raw.tsv",
     output:
-        "data/metadata.tsv",
+        "builds/metadata.tsv",
     run:
         import re
         with open(input[0], "r") as f:
@@ -102,7 +102,7 @@ rule remove_false_meta_linebreaks:
 
 rule nextclade:
     input: 
-        fasta = "data/{build}/omicron.fasta",
+        fasta = "builds/{build}/omicron.fasta",
         dataset = rules.download_nextclade_dataset.output
     output:
         alignment = "pre-processed/{build}/nextclade/premask.aligned.fasta",
