@@ -18,7 +18,7 @@ rule deploy_all:
 
 def input_for_do_stuff(wildcards):
     try:
-        return next(Path("data").glob("*.tar"))
+        return str(next(Path("data").glob("*.tar")))
     except StopIteration as err:
         raise Exception("No tar found") from err
 
@@ -57,7 +57,7 @@ rule exclude_outliers:
     input:
         sequences = "data/gisaid.fasta",
         metadata = "data/metadata_omicron.tsv",
-        exclude = "data/{build}/exclude.txt",
+        exclude = "data/exclude_sites.txt",
     output:
         sampled_sequences = "data/{build}/filtered.fasta",
     shell:
