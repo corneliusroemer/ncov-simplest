@@ -181,7 +181,7 @@ rule refine:
     input:
         tree = rules.tree.output.tree,
         alignment = rules.mask.output.alignment,
-        metadata = "data/metadata.tsv",
+        metadata = "builds/metadata.tsv",
     output:
         tree = "builds/{build}/tree.nwk",
         node_data = "builds/{build}/branch_lengths.json"
@@ -238,7 +238,9 @@ rule ancestral_unmasked:
             --alignment {input.alignment} \
             --output-node-data {output.node_data} \
             --inference {params.inference} \
-            --infer-ambiguous 2>&1 | tee {log}
+            --keep-ambiguous \
+            --keep-overhangs \
+            2>&1 | tee {log}
         """
 
 
@@ -286,7 +288,7 @@ rule translate_unmasked:
 
 rule recency:
     input:
-        metadata= "data/metadata.tsv",
+        metadata= "builds/metadata.tsv",
     output:
         node_data = "builds/{build}/recency.json",
     shell:
@@ -315,7 +317,7 @@ rule export:
         ancestral = "builds/{build}/nt_muts{masking}",
         translate = "builds/{build}/aa_muts{masking}",
         auspice_config = "data/auspice_config.json",
-        metadata = "data/metadata.tsv",
+        metadata = "builds/metadata.tsv",
     output:
         auspice_json = "auspice/ncov_{build}-diversity{masking}",
     shell:
