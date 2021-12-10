@@ -31,7 +31,7 @@ rule unpack_gisaid_tar:
         """
         tar -xvf {input} -C data/unpacked
         tsv-uniq -H -f strain data/unpacked/*metadata.tsv >{output.metadata}
-        seqkit rename data/unpacked/*.fasta >{output.sequences}
+        seqkit rmdup -iP data/unpacked/*.fasta >{output.sequences}
         """
 
 rule download_nextclade_dataset:
