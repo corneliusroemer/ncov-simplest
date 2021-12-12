@@ -31,12 +31,24 @@ rule unpack_gisaid_tar:
         """
         tar -xvf {input} -C data/unpacked
         tsv-uniq -H -f strain data/unpacked/*metadata.tsv >{output.metadata}
-        seqkit rmdup -iP data/unpacked/*.fasta >{output.sequences}
+        seqkit rmdup -i data/unpacked/*.fasta >{output.sequences}
         """
 
 rule download_nextclade_dataset:
     output: directory("builds/nextclade_dataset")
     shell: "nextclade dataset get --name='sars-cov-2' --output-dir={output}"
+
+rule download_lat_longs:
+    output: "builds/lat_longs.tsv"
+    params:
+        url = "https://raw.githubusercontent.com/nextstrain/ncov/master/defaults/lat_longs.tsv"
+    shell: 
+        """
+        curl {params.url} | \
+        sed "s/North Rhine Westphalia/North Rhine-Westphalia/g" | \
+        sed "s/Baden-Wuerttemberg/Baden-Wurttemberg/g" \
+        > {output}
+        """
 
 genes = [
     "E",
@@ -53,9 +65,14 @@ genes = [
     "S",
 ]
 
+rule subsample_fasta:
+    input: "builds/gisaid.fasta"
+    output: "builds/subsampled.fasta"
+    shell: "seqkit sample -n 1500 {input} >{output}"
+
 rule exclude_outliers:
     input:
-        sequences = "builds/gisaid.fasta",
+        sequences = "builds/subsampled.fasta",
         metadata = "builds/metadata_omicron.tsv",
         exclude = "data/{build}/exclude.txt",
     output:
@@ -109,12 +126,14 @@ rule nextclade:
         translations = expand("pre-processed/{{build}}/nextclade/premask.gene.{gene}.fasta", gene=genes),
     shell:
         """
-        nextclade run \
-            --input-fasta {input.fasta} \
-            --input-dataset {input.dataset} \
+        nextalign \
+            --sequences {input.fasta} \
+            --reference "builds/nextclade_dataset/reference.fasta" \
+            --genemap "builds/nextclade_dataset/genemap.gff" \
+            --genes E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S \
             --output-dir pre-processed/{wildcards.build}/nextclade \
-            --jobs 0 \
-            -n premask
+            --output-basename premask \
+            --jobs 0
         """
 
 # no mask
@@ -151,12 +170,14 @@ rule nextclade_after_mask:
         translations = expand("pre-processed/{{build}}/nextclade/omicron.gene.{gene}.fasta", gene=genes),
     shell:
         """
-        nextclade run \
-            --input-fasta {input.fasta} \
-            --input-dataset {input.dataset} \
+        nextalign \
+            --sequences {input.fasta} \
+            --reference "builds/nextclade_dataset/reference.fasta" \
+            --genemap "builds/nextclade_dataset/genemap.gff" \
+            --genes E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S \
             --output-dir pre-processed/{wildcards.build}/nextclade \
-            --jobs 0 \
-            -n omicron
+            --output-basename omicron \
+            --jobs 0
         """
 
 rule tree:
@@ -199,7 +220,7 @@ rule refine:
             --keep-polytomies \
             --clock-rate 0.0006 \
             --clock-std-dev 0.003 \
-            --coalescent opt \
+            --coalescent skyline \
             --date-inference marginal \
             --date-confidence \
             --no-covariance
@@ -317,6 +338,7 @@ rule export:
         ancestral = "builds/{build}/nt_muts{masking}",
         translate = "builds/{build}/aa_muts{masking}",
         auspice_config = "data/auspice_config.json",
+        lat_longs = rules.download_lat_longs.output,
         metadata = "builds/metadata.tsv",
     output:
         auspice_json = "auspice/ncov_{build}-diversity{masking}",
@@ -328,6 +350,7 @@ rule export:
             --node-data {input.node_data} {input.ancestral} {input.translate} \
             --include-root-sequence \
             --auspice-config {input.auspice_config} \
+            --lat-longs {input.lat_longs} \
             --output {output.auspice_json} \
             --metadata {input.metadata} \
             --description data/description.md \
