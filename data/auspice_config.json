@@ -1,5 +1,5 @@
 {
-  "title": "Phylogenetic analysis of within-clade Omicron diversity (without outliers)",
+  "title": "Subsampled phylogenetic analysis of within-clade 21K (Omicron) diversity",
   "build_url": "https://github.com/corneliusroemer/ncov-simplest",
   "maintainers": [
     { "name": "Cornelius Roemer", "url": "https://neherlab.org" },

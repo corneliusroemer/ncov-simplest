@@ -70,31 +70,6 @@ rule subsample_fasta:
     output: "builds/subsampled.fasta"
     shell: "seqkit sample -n 1500 {input} >{output}"
 
-rule exclude_outliers:
-    input:
-        sequences = "builds/subsampled.fasta",
-        metadata = "builds/metadata_omicron.tsv",
-        exclude = "data/{build}/exclude.txt",
-    output:
-        sampled_sequences = "builds/{build}/filtered.fasta",
-    shell:
-        """
-        augur filter \
-            --sequences {input.sequences} \
-            --metadata {input.metadata} \
-            --exclude {input.exclude} \
-            --output {output.sampled_sequences}
-        """
-
-rule join_ref_fasta:
-    input:
-        reference = "data/reference_seq.fasta",
-        omicron = "builds/{build}/filtered.fasta",
-    output:
-        "builds/{build}/omicron.fasta",
-    shell:
-        "cat {input.reference} {input.omicron} > {output}"
-
 rule join_ref_meta:
     input:
         reference = "data/root_meta.tsv",
@@ -116,6 +91,46 @@ rule remove_false_meta_linebreaks:
         string_out = re.sub(r"\n(?!(hCoV-19/|MN908947))"," ",string_in)
         with open(output[0], "w") as f: 
             f.write(str(string_out))
+
+def filter_arg(build):
+    if build == "21K":
+        return "tsv-filter -H --str-in-fld pangolin_lineage:BA.1" 
+    return "cat"
+
+rule filter_meta:
+    input:
+        metadata = "builds/metadata.tsv"
+    output:
+        filtered_metadata = "builds/{build}/metadata.tsv"
+    params:
+        filter_arg = lambda w: filter_arg(w.build)
+    shell: "{params.filter_arg} {input} > {output}"
+
+rule exclude_outliers:
+    input:
+        sequences = "builds/subsampled.fasta",
+        metadata = "builds/{build}/metadata.tsv",
+        exclude = "data/{build}/exclude.txt",
+    output:
+        sampled_sequences = "builds/{build}/filtered.fasta",
+    shell:
+        """
+        augur filter \
+            --sequences {input.sequences} \
+            --metadata {input.metadata} \
+            --exclude {input.exclude} \
+            --output {output.sampled_sequences}
+        """
+
+rule join_ref_fasta:
+    input:
+        reference = "data/reference_seq.fasta",
+        omicron = "builds/{build}/filtered.fasta",
+    output:
+        "builds/{build}/omicron.fasta",
+    shell:
+        "cat {input.reference} {input.omicron} > {output}"
+
 
 rule nextclade:
     input: 
@@ -202,7 +217,7 @@ rule refine:
     input:
         tree = rules.tree.output.tree,
         alignment = rules.mask.output.alignment,
-        metadata = "builds/metadata.tsv",
+        metadata = "builds/{build}/metadata.tsv",
     output:
         tree = "builds/{build}/tree.nwk",
         node_data = "builds/{build}/branch_lengths.json"
@@ -309,7 +324,7 @@ rule translate_unmasked:
 
 rule recency:
     input:
-        metadata= "builds/metadata.tsv",
+        metadata= "builds/{build}/metadata.tsv",
     output:
         node_data = "builds/{build}/recency.json",
     shell:
@@ -339,7 +354,7 @@ rule export:
         translate = "builds/{build}/aa_muts{masking}",
         auspice_config = "data/auspice_config.json",
         lat_longs = rules.download_lat_longs.output,
-        metadata = "builds/metadata.tsv",
+        metadata = "builds/{build}/metadata.tsv",
     output:
         auspice_json = "auspice/ncov_{build}-diversity{masking}",
     shell:
@@ -353,8 +368,7 @@ rule export:
             --lat-longs {input.lat_longs} \
             --output {output.auspice_json} \
             --metadata {input.metadata} \
-            --description data/description.md \
-            # --title "Phylogenetic analysis of the ORF1ab genes of the Omicron variant"
+            --description data/description.md
         """
 
 rule deploy_single:
