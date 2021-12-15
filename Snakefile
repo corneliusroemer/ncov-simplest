@@ -68,22 +68,13 @@ genes = [
 rule subsample_fasta:
     input: "builds/gisaid.fasta"
     output: "builds/subsampled.fasta"
-    shell: "seqkit sample -n 1500 {input} >{output}"
-
-rule join_ref_meta:
-    input:
-        reference = "data/root_meta.tsv",
-        omicron = "builds/metadata_omicron.tsv",
-    output:
-        "builds/metadata_raw.tsv",
-    shell:
-        "cat {input.omicron} {input.reference} > {output}"
+    shell: "seqkit sample -p 1 {input} >{output}"
 
 rule remove_false_meta_linebreaks:
     input:
         "builds/metadata_raw.tsv",
     output:
-        "builds/metadata.tsv",
+        metadata = "builds/metadata_sanitized.tsv",
     run:
         import re
         with open(input[0], "r") as f:
@@ -92,6 +83,25 @@ rule remove_false_meta_linebreaks:
         with open(output[0], "w") as f: 
             f.write(str(string_out))
 
+rule subsample_meta:
+    input:
+        max = "data/max.tsv",
+        metadata = rules.remove_false_meta_linebreaks.output.metadata,
+    output:
+        metadata = "builds/metadata_subsampled.tsv",
+    run:
+        import pandas as pd
+        df = pd.read_csv(input.metadata,sep="\t")
+        df_weights = pd.read_csv(input.max,sep="\t").set_index('country')
+        df_weights['sequenced'] = df.country.value_counts()
+        df_weights['chosen'] = df_weights[['max','sequenced']].min(axis=1)
+        df.groupby('country').apply(
+            lambda x: x.sample(
+                n=df_weights.loc[x.name,'chosen'],
+                replace=False
+                )
+            ).to_csv(output.metadata,sep="\t",index=False)
+
 def filter_arg(build):
     if build == "21K":
         return "tsv-filter -H --str-in-fld pangolin_lineage:BA.1" 
@@ -99,12 +109,21 @@ def filter_arg(build):
 
 rule filter_meta:
     input:
-        metadata = "builds/metadata.tsv"
+        metadata = "builds/metadata_subsampled.tsv"
     output:
-        filtered_metadata = "builds/{build}/metadata.tsv"
+        filtered_metadata = "builds/{build}/metadata_filtered.tsv"
     params:
         filter_arg = lambda w: filter_arg(w.build)
     shell: "{params.filter_arg} {input} > {output}"
+
+rule join_ref_meta:
+    input:
+        reference = "data/root_meta.tsv",
+        omicron = rules.filter_meta.output.filtered_metadata
+    output:
+        filtered_metadata = "builds/{build}/metadata.tsv"
+    shell:
+        "cat {input.omicron} {input.reference} > {output}"
 
 rule exclude_outliers:
     input:
