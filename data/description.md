@@ -6,8 +6,9 @@ The following sites are masked (plus 100 nt from beginning and 200nt from end): 
 These are all the sites that seem to define Omicron and are conserved. Due to the large number of mutations in Spike and deletions, there seem to be amplicon dropouts that are sometimes backfilled with reference. Analysis of trees without masking these revealed a large number of probably artefactual homoplasies.
 
 The analysis is maintained by
- * [Cornelius Roemer](https://neherlab.org) at Biozentrum of the University of Basel and the Swiss Institute of Bioinformatics
- * [Richard Neher](https://neherlab.org) at Biozentrum of the University of Basel and the Swiss Institute of Bioinformatics
+
+* [Cornelius Roemer](https://neherlab.org) at Biozentrum of the University of Basel and the Swiss Institute of Bioinformatics
+* [Richard Neher](https://neherlab.org) at Biozentrum of the University of Basel and the Swiss Institute of Bioinformatics
 
 All data we use are deposited in GISAID.
 

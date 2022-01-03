@@ -12,4 +12,4 @@ data/metadata_omicron.tsv
 deploy/*
 data/metadata_raw.tsv
 data/unpacked
-
+.DS_Store

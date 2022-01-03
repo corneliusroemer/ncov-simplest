@@ -13,8 +13,14 @@ import click
 def subsample(input_metadata, output_metadata, population):
     """Subsample a metadata file proportional to population"""
     # %%
-    meta = pd.read_csv(input_metadata,sep="\t")
-    meta
+    # input_metadata = "builds/21K/metadata.tsv"
+    meta = pd.read_csv(input_metadata,sep="\t",low_memory=False)
+    meta['clock_deviation'] = pd.to_numeric(meta['clock_deviation'], errors='coerce')
+    meta.dropna(subset=['clock_deviation'], inplace=True)
+    meta = meta[meta.clock_deviation < 10]
+    meta = meta[meta['QC_rare_mutations'] == 'good']
+    meta = meta[meta['QC_snp_clusters'] == 'good']
+    meta = meta[meta['QC_missing_data'] == 'good']
     # %%
     seq_per_country = meta.groupby('country').virus.count()
     seq_per_country.sort_values(ascending=False,inplace=True)
@@ -47,9 +53,9 @@ def subsample(input_metadata, output_metadata, population):
     while True:
         df['max'] = np.ceil(ratio * df['pop'])
         df['actual'] = df[['max','count']].min(axis=1).astype(int)
-        if df['actual'].sum() < 1000:
+        if df['actual'].sum() < 1500:
             print(f"{df['actual'].sum()} sequences")
-            print(f"{ratio} sequences per million pop")
+            print(f"{ratio} sequences per population")
             break
         ratio *= 0.9
     df
