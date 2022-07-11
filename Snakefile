@@ -1,7 +1,6 @@
 rule build:
     input:
-        "auspice/ncov_21K-diversity.json",
-        "auspice/ncov_21K-diversity_unmasked.json"
+        "auspice/ncov_22D-diversity.json",
 
 rule build_all:
     input:
@@ -22,60 +21,60 @@ def input_for_do_stuff(wildcards):
     except StopIteration as err:
         raise Exception("No tar found") from err
 
-# rule unpack_gisaid_tar:
-#     input: input_for_do_stuff
+rule unpack_gisaid_tar:
+    input: input_for_do_stuff
+    output:
+        sequences = "builds/gisaid.fasta",
+        metadata = "builds/gisaid_metadata.tsv",
+    shell:
+        """
+        tar -xvf {input} -C data/unpacked
+        tsv-uniq -H -f strain data/unpacked/*metadata.tsv >{output.metadata}
+        seqkit rmdup -i data/unpacked/*.fasta >{output.sequences}
+        """
+
+# rule download_sequences:
 #     output:
-#         sequences = "builds/gisaid.fasta",
+#         sequences = "builds/sequences.fasta.xz",
+#     shell: "aws s3 cp s3://nextstrain-ncov-private/sequences.fasta.xz {output.sequences}"
+
+# rule download_metadata:
+#     output:
+#         metadata = "builds/metadata.tsv.gz",
+#     shell: "aws s3 cp s3://nextstrain-ncov-private/metadata.tsv.gz {output.metadata}"
+
+# rule extract_omicron_metadata:
+#     input:
+#         metadata = "builds/metadata.tsv.gz",
+#     output:
 #         metadata = "builds/metadata_omicron.tsv",
 #     shell:
 #         """
-#         tar -xvf {input} -C data/unpacked
-#         tsv-uniq -H -f strain data/unpacked/*metadata.tsv >{output.metadata}
-#         seqkit rmdup -i data/unpacked/*.fasta >{output.sequences}
+#         gzcat {input} | \
+#         tsv-filter -H --str-in-fld Nextstrain_clade:Omicron >{output.metadata}
 #         """
 
-rule download_sequences:
-    output:
-        sequences = "builds/sequences.fasta.xz",
-    shell: "aws s3 cp s3://nextstrain-ncov-private/sequences.fasta.xz {output.sequences}"
+# rule get_omicron_strain_names:
+#     input:
+#         metadata = rules.extract_omicron_metadata.output.metadata,
+#     output:
+#         strain_names = "builds/omicron_strain_names.txt",
+#     shell:
+#         """
+#         tsv-select -H -f strain {input.metadata} > {output.strain_names}
+#         """
 
-rule download_metadata:
-    output:
-        metadata = "builds/metadata.tsv.gz",
-    shell: "aws s3 cp s3://nextstrain-ncov-private/metadata.tsv.gz {output.metadata}"
-
-rule extract_omicron_metadata:
-    input:
-        metadata = "builds/metadata.tsv.gz",
-    output:
-        metadata = "builds/metadata_omicron.tsv",
-    shell:
-        """
-        gzcat {input} | \
-        tsv-filter -H --str-in-fld Nextstrain_clade:Omicron >{output.metadata}
-        """
-
-rule get_omicron_strain_names:
-    input:
-        metadata = rules.extract_omicron_metadata.output.metadata,
-    output:
-        strain_names = "builds/omicron_strain_names.txt",
-    shell:
-        """
-        tsv-select -H -f strain {input.metadata} > {output.strain_names}
-        """
-
-rule extract_omicron_sequences:
-    input:
-        sequences = rules.download_sequences.output.sequences,
-        strain_names = rules.get_omicron_strain_names.output.strain_names,
-    output:
-        sequences = "builds/gisaid.fasta.gz",
-    shell:
-        """
-        xzcat {input.sequences} | \
-        seqkit grep -f {input.strain_names} -o {output.sequences}
-        """
+# rule extract_omicron_sequences:
+#     input:
+#         sequences = rules.download_sequences.output.sequences,
+#         strain_names = rules.get_omicron_strain_names.output.strain_names,
+#     output:
+#         sequences = "builds/gisaid.fasta.gz",
+#     shell:
+#         """
+#         xzcat {input.sequences} | \
+#         seqkit grep -f {input.strain_names} -o {output.sequences}
+#         """
 
 rule download_nextclade_dataset:
     output: directory("builds/nextclade_dataset")
@@ -122,7 +121,7 @@ def filter_arg(build):
 
 rule filter_meta:
     input:
-        metadata = rules.extract_omicron_metadata.output.metadata,
+        metadata = rules.unpack_gisaid_tar.output.metadata,
     output:
         metadata = "builds/{build}/metadata_filtered.tsv"
     params:
@@ -136,12 +135,13 @@ rule subsample_meta:
     output:
         metadata = "builds/{build}/metadata_subsampled.tsv",
     shell: 
-        """
-        python scripts/subsample.py \
-            --population {input.population} \
-            --input-metadata {input.metadata} \
-            --output-metadata {output.metadata}
-        """
+        # """
+        # python scripts/subsample.py \
+        #     --population {input.population} \
+        #     --input-metadata {input.metadata} \
+        #     --output-metadata {output.metadata}
+        # """
+        "cp {input.metadata} {output.metadata}"
 
 rule join_ref_meta:
     input:
@@ -154,14 +154,14 @@ rule join_ref_meta:
 
 rule create_index:
     input:
-        sequences = "builds/gisaid.fasta.gz"
+        sequences = "builds/gisaid.fasta"
     output:
         index = "builds/gisaid.fasta.index"
     shell: "augur index -s {input.sequences} -o {output.index}"
 
 rule exclude_outliers:
     input:
-        sequences = "builds/gisaid.fasta.gz",
+        sequences = "builds/gisaid.fasta",
         metadata = "builds/{build}/metadata.tsv",
         exclude = "data/{build}/exclude.txt",
         index = "builds/gisaid.fasta.index",
@@ -179,7 +179,7 @@ rule exclude_outliers:
 
 rule join_ref_fasta:
     input:
-        reference = "data/reference_seq.fasta",
+        reference = "data/reference_seq_ba2.fasta",
         omicron = "builds/{build}/filtered.fasta",
     output:
         "builds/{build}/omicron.fasta",
@@ -194,16 +194,20 @@ rule nextclade:
     output:
         alignment = "pre-processed/{build}/nextclade/premask.aligned.fasta",
         translations = expand("pre-processed/{{build}}/nextclade/premask.gene.{gene}.fasta", gene=genes),
+    params:
+        outdir=lambda w: f"pre-processed/{w.build}/"
+            + "/nextclade/premask.gene.{gene}.fasta",
     shell:
         """
-        nextalign \
-            --sequences {input.fasta} \
-            --reference "builds/nextclade_dataset/reference.fasta" \
-            --genemap "builds/nextclade_dataset/genemap.gff" \
+        nextalign run \
+            --jobs={threads} \
+            --input-ref "builds/nextclade_dataset/reference.fasta" \
+            --input-gene-map "builds/nextclade_dataset/genemap.gff" \
             --genes E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S \
-            --output-dir pre-processed/{wildcards.build}/nextclade \
-            --output-basename premask \
-            --jobs 0
+            {input.fasta} \
+            --output-translations {params.outdir} \
+            --output-fasta {output.alignment} \
+             2>&1
         """
 
 rule mask:
@@ -230,17 +234,21 @@ rule nextclade_after_mask:
     output:
         alignment = "pre-processed/{build}/nextclade/omicron.aligned.fasta",
         translations = expand("pre-processed/{{build}}/nextclade/omicron.gene.{gene}.fasta", gene=genes),
+    params:
+        outdir=lambda w: f"pre-processed/{w.build}/"
+            + "/nextclade/omicron.gene.{gene}.fasta",
     shell:
         """
-        nextalign \
-            --sequences {input.fasta} \
-            --reference "builds/nextclade_dataset/reference.fasta" \
-            --genemap "builds/nextclade_dataset/genemap.gff" \
+        nextalign run \
+            --input-ref "builds/nextclade_dataset/reference.fasta" \
+            --input-gene-map "builds/nextclade_dataset/genemap.gff" \
             --genes E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S \
-            --output-dir pre-processed/{wildcards.build}/nextclade \
-            --output-basename omicron \
-            --jobs 0
+            {input.fasta} \
+            --output-translations {params.outdir} \
+            --output-fasta {output.alignment} \
+             2>&1
         """
+    
 
 rule tree:
     input:
@@ -272,7 +280,7 @@ rule refine:
         """
         augur refine \
             --tree {input.tree} \
-            --root MN908947 \
+            --root BA.2 \
             --alignment {input.alignment} \
             --divergence-units mutations \
             --output-tree {output.tree} \
