@@ -1,9 +1,8 @@
-This phylogeny shows diversity within the Omicron variant from the ongoing novel coronavirus COVID-19 pandemic.
-All published Omicron sequences are included, except outliers that differ from main Omicron by more than 10 mutations like hCoV-19/Australia/QLD2584/2021 and SouthAfrica/CERI-KRISP-K032307/2021.
+This phylogeny shows diversity within the BA.2.86 variant from the ongoing novel coronavirus COVID-19 pandemic.
+All published BA.2.86 sequences are included.
 
-The following sites are masked (plus 100 nt from beginning and 200nt from end): https://github.com/corneliusroemer/ncov-simplest/blob/main/data/exclude_sites_light.txt
-
-These are all the sites that seem to define Omicron and are conserved. Due to the large number of mutations in Spike and deletions, there seem to be amplicon dropouts that are sometimes backfilled with reference. Analysis of trees without masking these revealed a large number of probably artefactual homoplasies.
+The following sites are masked (plus 100 nt from beginning and 200nt from end):
+In hCoV-19/Israel/ICH-741198454/2023: 22786,23222 (likely primer trimming artefacts)
 
 The analysis is maintained by
 
