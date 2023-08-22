@@ -244,12 +244,12 @@ rule mask:
         alignment="builds/{build}/masked.fasta",
     shell:
         """
-        python3 scripts/mask-alignment.py \
-            --alignment {input.alignment} \
+        augur mask \
+            --sequences {input.alignment} \
             --mask-from-beginning 100 \
             --mask-from-end 200 \
-            --mask-terminal-gaps \
-            --mask-site-file {input.mask_sites} \
+            --mask-gaps all \
+            --mask {input.mask_sites} \
             --output {output.alignment}
         """
 
@@ -316,6 +316,7 @@ rule refine:
             --metadata {input.metadata} \
             --output-node-data {output.node_data} \
             --timetree \
+            --coalescent skyline \
             --keep-polytomies \
             --date-inference marginal \
             --date-confidence \
