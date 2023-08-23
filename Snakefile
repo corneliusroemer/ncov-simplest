@@ -318,8 +318,11 @@ rule refine:
             --timetree \
             --coalescent skyline \
             --keep-polytomies \
+            --root oldest \
             --date-inference marginal \
             --date-confidence \
+            --clock-rate 0.0006 \
+            --clock-std-dev 0.0002 \
             --no-covariance
         """
 
@@ -342,7 +345,7 @@ rule ancestral:
             --alignment {input.alignment} \
             --output-node-data {output.node_data} \
             --inference {params.inference} \
-            --genes "M" "N" "ORF1a" "ORF8" "S" \
+            --genes "E" "M" "N" "ORF1a" "ORF8" "S" "ORF7a" "ORF1b" \
             --annotation {input.annotation} \
             --translations {params.translations} \
             2>&1 | tee {log}
