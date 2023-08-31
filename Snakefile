@@ -324,10 +324,8 @@ rule refine:
             --coalescent skyline \
             --keep-polytomies \
             --date-inference marginal \
-            --root "BA.2" "BA.2.16" \
+            --root "BA.2" "BA.2.16" "BA.2.19" \
             --date-confidence \
-            --clock-rate 0.0006 \
-            --clock-std-dev 0.0001 \
             --no-covariance
         """
 
