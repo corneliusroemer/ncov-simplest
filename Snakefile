@@ -155,7 +155,11 @@ rule join_ref_meta:
     output:
         filtered_metadata="builds/{build}/metadata.tsv",
     shell:
-        "cat {input.omicron} {input.reference} > {output}"
+        """
+        cat {input.omicron} {input.reference} \
+        | sed 's/EPI_ISL_18164467\t?\t2023-08/EPI_ISL_18164467\t?\t2023-08-XX/g' \
+        > {output}
+        """
 
 
 rule create_index:
@@ -193,7 +197,7 @@ rule join_ref_fasta:
         "builds/{build}/omicron.fasta",
     shell:
         # "cat data/reference_seq_BA2.fasta data/ref_seq_XBB.1.5.fasta {input.omicron} > {output}"
-        "cat data/reference_seq_BA2.fasta {input.omicron} > {output}"
+        "cat data/reference_seq_BA2.fasta data/BA.2*fasta {input.omicron} > {output}"
 
 
 rule nextclade:
@@ -320,9 +324,10 @@ rule refine:
             --coalescent skyline \
             --keep-polytomies \
             --date-inference marginal \
+            --root "BA.2" "BA.2.16" \
             --date-confidence \
             --clock-rate 0.0006 \
-            --clock-std-dev 0.0002 \
+            --clock-std-dev 0.0001 \
             --no-covariance
         """
 
