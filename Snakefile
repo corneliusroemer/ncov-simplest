@@ -16,14 +16,16 @@ def input_for_do_stuff(wildcards):
 
 
 rule unpack_gisaid_tar:
-    input:
-        input_for_do_stuff,
     output:
         sequences="builds/gisaid.fasta",
         metadata="builds/gisaid_metadata.tsv",
+    params:
+        tars="data/*.tar",
     shell:
         """
-        tar -xvf {input} -C data/unpacked
+        for tar in {params.tars}; do
+            tar -xvf $tar -C data/unpacked
+        done
         tsv-uniq -H -f strain data/unpacked/*metadata.tsv >{output.metadata}
         seqkit rmdup -i data/unpacked/*.fasta >{output.sequences}
         """
@@ -153,13 +155,47 @@ rule join_ref_meta:
         reference="data/root_meta.tsv",
         omicron=rules.subsample_meta.output.metadata,
     output:
-        filtered_metadata="builds/{build}/metadata.tsv",
+        filtered_metadata="builds/{build}/metadata_raw.tsv",
     shell:
         """
         cat {input.omicron} {input.reference} \
         | sed 's/EPI_ISL_18164467\t?\t2023-08/EPI_ISL_18164467\t?\t2023-08-XX/g' \
         > {output}
         """
+
+
+rule postprocess_dates:
+    input:
+        metadata=rules.join_ref_meta.output.filtered_metadata,
+    output:
+        metadata="builds/{build}/metadata.tsv",
+    run:
+        import pandas as pd
+        from treetime.utils import numeric_date
+        from datetime import datetime as dt
+        from datetime import timedelta
+
+
+        def danish_daterange(datestring):
+            start_date = dt.strptime(datestring, "%Y-%m-%d")
+            end_date = start_date + timedelta(days=7)
+            return f"[{numeric_date(start_date)}:{numeric_date(end_date)}]"
+
+
+        def add_xx_to_incomplete_date(datestring):
+            if len(datestring) == 7:
+                return datestring + "-XX"
+            else:
+                return datestring
+
+
+        df = pd.read_csv(input.metadata, sep="\t", low_memory=False, dtype=str)
+        df["raw_date"] = df.date
+        df.loc[df.country == "Denmark", "date"] = df.loc[
+            df.country == "Denmark", "date"
+        ].apply(danish_daterange)
+        df.date = df.date.apply(add_xx_to_incomplete_date)
+        df.to_csv(output.metadata, sep="\t", index=False)
 
 
 rule create_index:
